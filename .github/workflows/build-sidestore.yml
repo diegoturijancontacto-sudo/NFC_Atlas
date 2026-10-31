@@ -1,0 +1,85 @@
+name: Build iOS Local for SideStore
+on:
+  workflow_dispatch:
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: 📂 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: ⚡ Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🛠️ Prebuild proyecto nativo iOS
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 🍫 Instalar Pods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: 🔎 Detectar workspace y scheme
+        id: detect
+        run: |
+          cd ios
+          echo "Contenido de ios/:"
+          ls -la
+
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          echo "Workspace encontrado: $WORKSPACE"
+
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1; next} flag && NF{print $1; exit}')
+          echo "Scheme encontrado: $SCHEME"
+
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+
+      - name: 🍎 Build iOS (unsigned, para sideload)
+        run: |
+          cd ios
+          xcodebuild archive \
+            -workspace "${{ steps.detect.outputs.workspace }}" \
+            -scheme "${{ steps.detect.outputs.scheme }}" \
+            -configuration Release \
+            -archivePath "$GITHUB_WORKSPACE/build/App.xcarchive" \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: 📦 Empaquetar IPA sin firmar
+        run: |
+          cd "$GITHUB_WORKSPACE/build/App.xcarchive/Products/Applications"
+          mkdir Payload
+          mv *.app Payload/
+          zip -r "$GITHUB_WORKSPACE/App-unsigned.ipa" Payload
+
+      - name: 🔍 Find and Move IPA
+        run: |
+          find . -name "*.ipa" -exec cp {} ./ \;
+          ls -la ./
+
+      - name: 🚀 Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-sidestore-app
+          path: ./*.ipa
