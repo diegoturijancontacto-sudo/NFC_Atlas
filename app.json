@@ -8,6 +8,7 @@
     "scheme": "nfccertificados",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.TurijanMedia.nfccertificados",
       "icon": "./assets/expo.icon"
     },
     "android": {
@@ -17,7 +18,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.NFC"
+      ]
     },
     "web": {
       "output": "server",
@@ -25,6 +29,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "NFC se usa para escribir enlaces de certificados en etiquetas cercanas."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -37,6 +47,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "edda28fc-77ab-4daa-b073-e0c54218600c"
+      }
     }
   }
 }
