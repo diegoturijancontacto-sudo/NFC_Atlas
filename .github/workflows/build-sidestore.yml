@@ -44,10 +44,13 @@ jobs:
           ls -la
 
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
-          echo "Workspace encontrado: $WORKSPACE"
+          # El scheme de la app se llama igual que el .xcodeproj
+          SCHEME=$(basename "$(ls -d *.xcodeproj | head -n 1)" .xcodeproj)
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme: $SCHEME"
 
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1; next} flag && NF{print $1; exit}')
-          echo "Scheme encontrado: $SCHEME"
+          echo "Schemes disponibles:"
+          xcodebuild -workspace "$WORKSPACE" -list
 
           echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
           echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
@@ -64,22 +67,26 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM=""
+            DEVELOPMENT_TEAM="" \
+            SKIP_INSTALL=NO
 
       - name: 📦 Empaquetar IPA sin firmar
         run: |
-          cd "$GITHUB_WORKSPACE/build/App.xcarchive/Products/Applications"
-          mkdir Payload
-          mv *.app Payload/
-          zip -r "$GITHUB_WORKSPACE/App-unsigned.ipa" Payload
-
-      - name: 🔍 Find and Move IPA
-        run: |
-          find . -name "*.ipa" -exec cp {} ./ \;
-          ls -la ./
+          APP=$(find "$GITHUB_WORKSPACE/build/App.xcarchive" -maxdepth 4 -name "*.app" | head -n 1)
+          if [ -z "$APP" ]; then
+            echo "No se encontró .app. Contenido del archive:"
+            find "$GITHUB_WORKSPACE/build/App.xcarchive" -maxdepth 4
+            exit 1
+          fi
+          echo "App encontrada: $APP"
+          mkdir -p "$GITHUB_WORKSPACE/Payload"
+          cp -R "$APP" "$GITHUB_WORKSPACE/Payload/"
+          cd "$GITHUB_WORKSPACE"
+          zip -qr App-unsigned.ipa Payload
+          ls -la App-unsigned.ipa
 
       - name: 🚀 Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-sidestore-app
-          path: ./*.ipa
+          path: App-unsigned.ipa
