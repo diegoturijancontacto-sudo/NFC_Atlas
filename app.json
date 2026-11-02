@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.TurijanMedia.nfccertificados",
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "UIRequiredDeviceCapabilities": [
+          "arm64"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
